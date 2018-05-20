@@ -3,15 +3,16 @@ import "../libraries/SafeMath.sol";
 import "../libraries/Message.sol";
 import "./U_BasicBridge.sol";
 import "../upgradeability/EternalStorage.sol";
+import "../IBurnableMintableERC677Token.sol";
+import "../ERC677Receiver.sol";
 
 
-contract HomeBridge is EternalStorage, BasicBridge {
+contract HomeBridge is ERC677Receiver, EternalStorage, BasicBridge {
     using SafeMath for uint256;
-    event GasConsumptionLimitsUpdated(uint256 gas);
-    event Deposit (address recipient, uint256 value);
-    event Withdraw (address recipient, uint256 value, bytes32 transactionHash);
-    event SignedForDeposit(address indexed signer, bytes32 messageHash);
-    event SignedForWithdraw(address indexed signer, bytes32 transactionHash);
+    event Withdraw (address recipient, uint256 value);
+    event Deposit (address recipient, uint256 value, bytes32 transactionHash);
+    event SignedForWithdraw(address indexed signer, bytes32 messageHash);
+    event SignedForDeposit(address indexed signer, bytes32 transactionHash);
     event CollectedSignatures(address authorityResponsibleForRelay, bytes32 messageHash);
 
 
@@ -21,7 +22,9 @@ contract HomeBridge is EternalStorage, BasicBridge {
         uint256 _maxPerTx,
         uint256 _minPerTx,
         uint256 _homeGasPrice,
-        uint256 _requiredBlockConfirmations
+        uint256 _requiredBlockConfirmations,
+        address _erc677token
+
     ) public
       returns(bool)
     {
@@ -38,73 +41,63 @@ contract HomeBridge is EternalStorage, BasicBridge {
         uintStorage[keccak256("gasPrice")] = _homeGasPrice;
         uintStorage[keccak256("requiredBlockConfirmations")] = _requiredBlockConfirmations;
         setInitialize(true);
+        setErc677token(_erc677token);
+
         return isInitialized();
     }
 
-    function () public payable {
-        require(msg.value > 0);
-        require(msg.data.length == 0);
-        require(withinLimit(msg.value));
-        setTotalSpentPerDay(getCurrentDay(), totalSpentPerDay(getCurrentDay()).add(msg.value));
-        emit Deposit(msg.sender, msg.value);
+    function () public {
+        revert();
     }
 
-    function gasLimitWithdrawRelay() public view returns(uint256) {
-        return uintStorage[keccak256("gasLimitWithdrawRelay")];
-    }
-
-    function withdraws(bytes32 _withdraw) public view returns(bool) {
-        return boolStorage[keccak256("withdraws", _withdraw)];
-    }
-
-    function setGasLimitWithdrawRelay(uint256 _gas) external onlyOwner {
-        uintStorage[keccak256("gasLimitWithdrawRelay")] = _gas;
-        emit GasConsumptionLimitsUpdated(_gas);
-    }
-
-    function withdraw(address recipient, uint256 value, bytes32 transactionHash) external onlyValidator {
+    function deposit(address recipient, uint256 value, bytes32 transactionHash) external onlyValidator {
         bytes32 hashMsg = keccak256(recipient, value, transactionHash);
         bytes32 hashSender = keccak256(msg.sender, hashMsg);
         // Duplicated deposits
-        require(!withdrawalsSigned(hashSender));
-        setWithdrawalsSigned(hashSender, true);
+        require(!depositsSigned(hashSender));
+        setDepositsSigned(hashSender, true);
 
-        uint256 signed = numWithdrawalsSigned(hashMsg);
+        uint256 signed = numDepositsSigned(hashMsg);
         require(!isAlreadyProcessed(signed));
         // the check above assumes that the case when the value could be overflew will not happen in the addition operation below
         signed = signed + 1;
 
-        setNumWithdrawalsSigned(hashMsg, signed);
+        setNumDepositsSigned(hashMsg, signed);
 
-        emit SignedForWithdraw(msg.sender, transactionHash);
+        emit SignedForDeposit(msg.sender, transactionHash);
 
         if (signed >= requiredSignatures()) {
             // If the bridge contract does not own enough tokens to transfer
             // it will couse funds lock on the home side of the bridge
-            setNumWithdrawalsSigned(hashMsg, markAsProcessed(signed));
-            recipient.transfer(value);
-            emit Withdraw(recipient, value, transactionHash);
+            setNumDepositsSigned(hashMsg, markAsProcessed(signed));
+            erc677token().mint(recipient, value);
+            emit Deposit(recipient, value, transactionHash);
         }
     }
 
-    function numWithdrawalsSigned(bytes32 _withdrawal) public view returns(uint256) {
-        return uintStorage[keccak256("numWithdrawalsSigned", _withdrawal)];
+    function numDepositsSigned(bytes32 _deposit) public view returns(uint256) {
+        return uintStorage[keccak256("numDepositsSigned", _deposit)];
     }
 
-    function setWithdrawalsSigned(bytes32 _withdrawal, bool _status) private {
-        boolStorage[keccak256("withdrawalsSigned", _withdrawal)] = _status;
+    function setDepositsSigned(bytes32 _deposit, bool _status) private {
+        boolStorage[keccak256("depositsSigned", _deposit)] = _status;
     }
 
-    function setNumWithdrawalsSigned(bytes32 _withdrawal, uint256 _number) private {
-        uintStorage[keccak256("numWithdrawalsSigned", _withdrawal)] = _number;
+    function setNumDepositsSigned(bytes32 _deposit, uint256 _number) private {
+        uintStorage[keccak256("numDepositsSigned", _deposit)] = _number;
     }
 
-    function withdrawalsSigned(bytes32 _withdrawal) public view returns(bool) {
-        return boolStorage[keccak256("withdrawalsSigned", _withdrawal)];
+    function depositsSigned(bytes32 _deposit) public view returns(bool) {
+        return boolStorage[keccak256("depositsSigned", _deposit)];
     }
 
-    function setWithdraws(bytes32 _withdraw, bool _status) private {
-        boolStorage[keccak256("withdraws", _withdraw)] = _status;
+    function onTokenTransfer(address _from, uint256 _value, bytes /*_data*/) external returns(bool) {
+        require(msg.sender == address(erc677token()));
+        require(withinLimit(_value));
+        setTotalSpentPerDay(getCurrentDay(), totalSpentPerDay(getCurrentDay()).add(_value));
+        erc677token().burn(_value);
+        emit Withdraw(_from, _value);
+        return true;
     }
 
     function submitSignature(bytes signature, bytes message) external onlyValidator {
@@ -131,7 +124,7 @@ contract HomeBridge is EternalStorage, BasicBridge {
 
         setNumMessagesSigned(hashMsg, signed);
 
-        emit SignedForDeposit(msg.sender, hashMsg);
+        emit SignedForWithdraw(msg.sender, hashMsg);
         if (signed >= validatorContract().requiredSignatures()) {
             setNumMessagesSigned(hashMsg, markAsProcessed(signed));
             emit CollectedSignatures(msg.sender, hashMsg);
@@ -185,6 +178,15 @@ contract HomeBridge is EternalStorage, BasicBridge {
 
     function numMessagesSigned(bytes32 _message) public view returns(uint256) {
         return uintStorage[keccak256("numMessagesSigned", _message)];
+    }
+
+    function erc677token() public view returns(IBurnableMintableERC677Token) {
+        return IBurnableMintableERC677Token(addressStorage[keccak256("erc677token")]);
+    }
+
+    function setErc677token(address _token) private {
+        require(_token != address(0));
+        addressStorage[keccak256("erc677token")] = _token;
     }
 
 }

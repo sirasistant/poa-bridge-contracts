@@ -10,8 +10,5 @@ interface OwnableToken {
 
 contract ForeignBridgeV2 is ForeignBridge {
     function changeTokenOwnership(address _newTokenOwner) public onlyOwner {
-        address token = address(erc677token());
-        OwnableToken poa = OwnableToken(token);
-        poa.transferOwnership(_newTokenOwner);
     }
 }

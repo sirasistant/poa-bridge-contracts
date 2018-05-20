@@ -7,16 +7,18 @@ import "./IBurnableMintableERC677Token.sol";
 import "./ERC677Receiver.sol";
 
 
-contract POA20 is
+contract ERC677BridgeToken is
     IBurnableMintableERC677Token,
     DetailedERC20,
     BurnableToken,
     MintableToken {
-    function POA20(
-        string _name,
-        string _symbol,
-        uint8 _decimals)
-    public DetailedERC20(_name, _symbol, _decimals) {}
+
+    constructor(string _name, string _symbol, uint8 _decimals)
+        DetailedERC20(_name, _symbol, _decimals)
+    {
+
+    }
+    // public DetailedERC20(_name, _symbol, _decimals) {}
 
     modifier validRecipient(address _recipient) {
         require(_recipient != address(0) && _recipient != address(this));
