@@ -131,10 +131,6 @@ contract HomeBridge is ERC677Receiver, EternalStorage, BasicBridge {
         }
     }
 
-    function setMessagesSigned(bytes32 _hash, bool _status) private {
-        boolStorage[keccak256("messagesSigned", _hash)] = _status;
-    }
-
     function signature(bytes32 _hash, uint256 _index) public view returns (bytes) {
         bytes32 signIdx = keccak256(_hash, _index);
         return signatures(signIdx);
@@ -142,6 +138,28 @@ contract HomeBridge is ERC677Receiver, EternalStorage, BasicBridge {
 
     function messagesSigned(bytes32 _message) public view returns(bool) {
         return boolStorage[keccak256("messagesSigned", _message)];
+    }
+
+    function message(bytes32 _hash) public view returns (bytes) {
+        return messages(_hash);
+    }
+
+    function isAlreadyProcessed(uint256 _number) public pure returns(bool) {
+        return _number & 2**255 == 2**255;
+    }
+
+    function numMessagesSigned(bytes32 _message) public view returns(uint256) {
+        return uintStorage[keccak256("numMessagesSigned", _message)];
+    }
+
+    function erc677token() public view returns(IBurnableMintableERC677Token) {
+        return IBurnableMintableERC677Token(addressStorage[keccak256("erc677token")]);
+    }
+
+    // PRIVATE Methods
+
+    function setMessagesSigned(bytes32 _hash, bool _status) private {
+        boolStorage[keccak256("messagesSigned", _hash)] = _status;
     }
 
     function messages(bytes32 _hash) private view returns(bytes) {
@@ -160,28 +178,12 @@ contract HomeBridge is ERC677Receiver, EternalStorage, BasicBridge {
         bytesStorage[keccak256("messages", _hash)] = _message;
     }
 
-    function message(bytes32 _hash) public view returns (bytes) {
-        return messages(_hash);
-    }
-
     function setNumMessagesSigned(bytes32 _message, uint256 _number) private {
         uintStorage[keccak256("numMessagesSigned", _message)] = _number;
     }
 
     function markAsProcessed(uint256 _v) private pure returns(uint256) {
         return _v | 2 ** 255;
-    }
-
-    function isAlreadyProcessed(uint256 _number) public pure returns(bool) {
-        return _number & 2**255 == 2**255;
-    }
-
-    function numMessagesSigned(bytes32 _message) public view returns(uint256) {
-        return uintStorage[keccak256("numMessagesSigned", _message)];
-    }
-
-    function erc677token() public view returns(IBurnableMintableERC677Token) {
-        return IBurnableMintableERC677Token(addressStorage[keccak256("erc677token")]);
     }
 
     function setErc677token(address _token) private {

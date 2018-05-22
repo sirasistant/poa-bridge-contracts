@@ -9,6 +9,8 @@ interface OwnableToken {
 }
 
 contract ForeignBridgeV2 is ForeignBridge {
-    function changeTokenOwnership(address _newTokenOwner) public onlyOwner {
+    address public something;
+    function doSomething(address _newTokenOwner) public onlyOwner {
+        something = _newTokenOwner;
     }
 }
