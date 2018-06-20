@@ -71,23 +71,26 @@ async function sendRawTx({data, nonce, to, privateKey, url}) {
 }
 
 async function sendNodeRequest(url, method, signedData){
-  const request = await fetch(url, {
-    headers: {
-      'Content-type': 'application/json'
-    },
-    method: 'POST',
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      method,
-      params: [signedData],
-      id: 1
-    })
-  });
-  const json = await request.json()
-  if(method === 'eth_sendRawTransaction') {
-    assert.equal(json.result.length, 66, `Tx wasn't sent ${json}`)
-  }
-  return json.result;
+    const request = await fetch(url, {
+      headers: {
+        'Content-type': 'application/json'
+      },
+      method: 'POST',
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method,
+        params: [signedData],
+        id: 1
+      })
+    });
+    const json = await request.json()
+    if(json.error){
+      throw json.error
+    }
+    if(method === 'eth_sendRawTransaction') {
+      assert.equal(json.result.length, 66, `Tx wasn't sent ${json}`)
+    }
+    return json.result;
 
 }
 
