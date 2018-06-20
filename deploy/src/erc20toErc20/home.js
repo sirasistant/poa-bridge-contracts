@@ -110,7 +110,7 @@ async function deployHome()
   homeNonce++;
 
   console.log('\n[Home] deploying Bridgeble token')
-  const erc677token = await deployContract(ERC677BridgeToken, ["Bancor on POA", "BNT", 18], {from: DEPLOYMENT_ACCOUNT_ADDRESS, network: 'home', nonce: homeNonce})
+  const erc677token = await deployContract(ERC677BridgeToken, ["Token on POA", "TTT", 18], {from: DEPLOYMENT_ACCOUNT_ADDRESS, network: 'home', nonce: homeNonce})
   homeNonce++;
   console.log('[Home] Bridgeble Token: ', erc677token.options.address)
 
