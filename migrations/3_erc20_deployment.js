@@ -68,6 +68,9 @@ module.exports = async function(deployer, network, accounts) {
       value: 0,
       gas: 4700000
     })
+
+    await erc677token.transferOwnership(homeBridgeUpgradeable.address);
+
     console.log('ERC20 is done for sidechain', `
     validators: ${VALIDATORS}
     Owner: ${PROXY_OWNER}
@@ -120,8 +123,6 @@ module.exports = async function(deployer, network, accounts) {
       value: 0,
       gas: 4700000
     })
-
-    await erc677token.transferOwnership(foreignBridgeUpgradeable.address);
 
     console.log('ERC20 is done for rinkeby', `
     validators: ${VALIDATORS}
