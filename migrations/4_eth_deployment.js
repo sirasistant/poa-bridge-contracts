@@ -9,21 +9,18 @@ module.exports = async function(deployer, network, accounts) {
   const REQUIRED_NUMBER_OF_VALIDATORS = process.env.REQUIRED_VALIDATORS || VALIDATORS.length
   const PROXY_OWNER = process.env.PROXY_OWNER || accounts[0];
   const homeDailyLimit = process.env.HOME_LIMIT || '1000000000000000000000000' // 1000000 ether
+  const foreignDailyLimit = process.env.FOREIGN_LIMIT || '1000000000000000000000000' // 1000000 ether
   const MAX_AMOUNT_PER_TX = process.env.MAX_AMOUNT_PER_TX || '1000000000000000000000' // 1000 ether
   const MIN_AMOUNT_PER_TX = process.env.MIN_AMOUNT_PER_TX || '10000000000000000' // 0.01 ether
   const HOME_REQUIRED_BLOCK_CONFIRMATIONS = process.env.HOME_REQUIRED_BLOCK_CONFIRMATIONS || '3'
   const HOME_GAS_PRICE = process.env.HOME_GAS_PRICE || '1000000000';
+  const FOREIGN_GAS_PRICE = process.env.FOREIGN_GAS_PRICE || '1000000000';
   const FOREIGN_REQUIRED_BLOCK_CONFIRMATIONS = process.env.FOREIGN_REQUIRED_BLOCK_CONFIRMATIONS || '3';
-  const ERC20_ADDRESS = process.env.ERC20_ADDRESS || null;
 
-  if(network === 'sidechain'){
+  if(network === 'rinkeby'){
     console.log('storage for home validators')
     await deployer.deploy(EternalStorageProxy, {from: PROXY_OWNER});
     const storageBridgeValidators = await EternalStorageProxy.deployed()
-
-    console.log('deploying token')
-    await deployer.deploy(POA20, "Sidechain VPP", "VPP", 18)
-    const erc677token = await POA20.deployed()
 
     console.log('deploying validators')
     await deployer.deploy(BridgeValidators);
@@ -57,8 +54,7 @@ module.exports = async function(deployer, network, accounts) {
       MAX_AMOUNT_PER_TX,
       MIN_AMOUNT_PER_TX,
       HOME_GAS_PRICE,
-      HOME_REQUIRED_BLOCK_CONFIRMATIONS,
-      erc677token.address,
+      HOME_REQUIRED_BLOCK_CONFIRMATIONS
     );
     await homeBridgeUpgradeable.upgradeTo('1', homeBridgeImplementation.address, {from: PROXY_OWNER});
     await web3.eth.sendTransaction({
@@ -68,12 +64,15 @@ module.exports = async function(deployer, network, accounts) {
       value: 0,
       gas: 4700000
     })
-    console.log('ERC20 is done for sidechain', `
+    console.log('ETH is done for rinkeby', `
     validators: ${VALIDATORS}
     Owner: ${PROXY_OWNER}
-    Home Bridge: ${homeBridgeUpgradeable.address}
-    Side VPP: ${erc677token.address}`)
-  } else if(network === "rinkeby"){
+    Home Bridge: ${homeBridgeUpgradeable.address}`)
+  } else if(network === "sidechain"){
+
+    console.log('deploying token')
+    await deployer.deploy(POA20, "Sidechain ETH", "ETH", 18)
+    const erc677token = await POA20.deployed()
 
     console.log('storage for home validators')
     await deployer.deploy(EternalStorageProxy, {from: PROXY_OWNER});
@@ -108,7 +107,11 @@ module.exports = async function(deployer, network, accounts) {
 
     var initializeDataForeign = foreignBridgeWeb3Instance.initialize.getData(
         storageBridgeValidators.address,
-        ERC20_ADDRESS,
+        erc677token.address,
+        foreignDailyLimit,
+        MAX_AMOUNT_PER_TX,
+        MIN_AMOUNT_PER_TX,
+        FOREIGN_GAS_PRICE,
         FOREIGN_REQUIRED_BLOCK_CONFIRMATIONS
       );
       await foreignBridgeUpgradeable.upgradeTo('1', foreignBridgeImplementation.address, {from: PROXY_OWNER});
@@ -123,11 +126,11 @@ module.exports = async function(deployer, network, accounts) {
 
     await erc677token.transferOwnership(foreignBridgeUpgradeable.address);
 
-    console.log('ERC20 is done for rinkeby', `
+    console.log('ETH is done for sidechain', `
     validators: ${VALIDATORS}
     Owner: ${PROXY_OWNER}
     Foreign Bridge: ${foreignBridgeUpgradeable.address}
-    Rinkeby VPP: ${ERC20_ADDRESS}`)
+    Sidechain ETH: ${erc677token.address}`)
   }
 
 };

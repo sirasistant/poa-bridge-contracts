@@ -40,11 +40,19 @@ module.exports = {
       gas: 0xfffffffffff,
       gasPrice: 0x01,
     },
-    ganache: {
+    rinkeby: {
       host: 'localhost',
       port: 8545,
+      gas:4700000,
+      gasPrice: 10000000000,
       network_id: '*', // eslint-disable-line camelcase
-      gasPrice: 1000000000
+    },
+    sidechain:{
+      host:'localhost',
+      port:8546,
+      network_id:'*',
+      gasPrice: 1,
+      gas:4700000,
     }
   },
   solc: {
