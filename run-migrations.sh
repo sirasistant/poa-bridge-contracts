@@ -1,5 +1,5 @@
 #! /bin/sh
-echo $1
+echo ERC20 address is $1
 $ERC20_ADDRESS = $1
 rm migrations.log
 echo "ERC20 to ERC20 in sidechain"
