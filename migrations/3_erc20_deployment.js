@@ -17,9 +17,6 @@ module.exports = async function(deployer, network, accounts) {
   const PROXY_OWNER = process.env.PROXY_OWNER || accounts[1];
 
   if(network === 'sidechain'){
-    if(ERC20_ADDRESS===null){
-      throw new Error("Fill the enviroment variable ERC20_ADDRESS");
-    }
     if(!PROXY_OWNER){
       throw new Error("You need a second address for deployment, not coinbase");
     }
@@ -83,6 +80,9 @@ module.exports = async function(deployer, network, accounts) {
     Home Bridge: ${homeBridgeUpgradeable.address}
     Side VPP: ${erc677token.address}`)
   } else if(network === "rinkeby"){
+    if(ERC20_ADDRESS===null){
+      throw new Error("Fill the enviroment variable ERC20_ADDRESS");
+    }
     if(!PROXY_OWNER){
       throw new Error("You need a second address for deployment, not coinbase");
     }
