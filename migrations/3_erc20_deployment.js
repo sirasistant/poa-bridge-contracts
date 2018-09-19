@@ -5,7 +5,8 @@ const ForeignBridge = artifacts.require("./ForeignBridgeErcToErc.sol");
 const EternalStorageProxy = artifacts.require('EternalStorageProxy')
 
 module.exports = async function(deployer, network, accounts) {
-  const VALIDATORS = process.env.VALIDATORS ? process.env.VALIDATORS.split(" ") : [accounts[1]];
+  const ACCOUNT_INDEX = 1;
+  const VALIDATORS = process.env.VALIDATORS ? process.env.VALIDATORS.split(" ") : [accounts[ACCOUNT_INDEX]];
   const REQUIRED_NUMBER_OF_VALIDATORS = process.env.REQUIRED_VALIDATORS || VALIDATORS.length
   const homeDailyLimit = process.env.HOME_LIMIT || '1000000000000000000000000' // 1000000 ether
   const MAX_AMOUNT_PER_TX = process.env.MAX_AMOUNT_PER_TX || '1000000000000000000000' // 1000 ether
@@ -14,7 +15,7 @@ module.exports = async function(deployer, network, accounts) {
   const HOME_GAS_PRICE = process.env.HOME_GAS_PRICE || '1000000000';
   const FOREIGN_REQUIRED_BLOCK_CONFIRMATIONS = process.env.FOREIGN_REQUIRED_BLOCK_CONFIRMATIONS || '3';
   const ERC20_ADDRESS = process.env.ERC20_ADDRESS || null;
-  const PROXY_OWNER = process.env.PROXY_OWNER || accounts[1];
+  const PROXY_OWNER = process.env.PROXY_OWNER || accounts[ACCOUNT_INDEX];
 
   if(network === 'sidechain'){
     if(!PROXY_OWNER){

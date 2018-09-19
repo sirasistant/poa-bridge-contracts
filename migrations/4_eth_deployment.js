@@ -5,9 +5,10 @@ const ForeignBridge = artifacts.require("./ForeignBridgeNativeToErc.sol");
 const EternalStorageProxy = artifacts.require('EternalStorageProxy')
 
 module.exports = async function(deployer, network, accounts) {
-  const VALIDATORS = process.env.VALIDATORS ? process.env.VALIDATORS.split(" ") : [accounts[1]];
+  const ACCOUNT_INDEX = 2;
+  const VALIDATORS = process.env.VALIDATORS ? process.env.VALIDATORS.split(" ") : [accounts[ACCOUNT_INDEX]];
   const REQUIRED_NUMBER_OF_VALIDATORS = process.env.REQUIRED_VALIDATORS || VALIDATORS.length
-  const PROXY_OWNER = process.env.PROXY_OWNER || accounts[1];
+  const PROXY_OWNER = process.env.PROXY_OWNER || accounts[ACCOUNT_INDEX];
   const homeDailyLimit = process.env.HOME_LIMIT || '1000000000000000000000000' // 1000000 ether
   const foreignDailyLimit = process.env.FOREIGN_LIMIT || '1000000000000000000000000' // 1000000 ether
   const MAX_AMOUNT_PER_TX = process.env.MAX_AMOUNT_PER_TX || '1000000000000000000000' // 1000 ether
