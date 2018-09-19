@@ -5,7 +5,7 @@ const ForeignBridge = artifacts.require("./ForeignBridgeNativeToErc.sol");
 const EternalStorageProxy = artifacts.require('EternalStorageProxy')
 
 module.exports = async function(deployer, network, accounts) {
-  const VALIDATORS = process.env.VALIDATORS ? process.env.VALIDATORS.split(" ") : [accounts[0]];
+  const VALIDATORS = process.env.VALIDATORS ? process.env.VALIDATORS.split(" ") : [accounts[1]];
   const REQUIRED_NUMBER_OF_VALIDATORS = process.env.REQUIRED_VALIDATORS || VALIDATORS.length
   const PROXY_OWNER = process.env.PROXY_OWNER || accounts[1];
   const homeDailyLimit = process.env.HOME_LIMIT || '1000000000000000000000000' // 1000000 ether

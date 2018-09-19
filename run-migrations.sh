@@ -1,6 +1,6 @@
 #! /bin/sh
 echo ERC20 address is $1
-export $ERC20_ADDRESS = $1
+export ERC20_ADDRESS = $1
 rm migrations.log
 echo "ERC20 to ERC20 in sidechain"
 rm -r ./build
