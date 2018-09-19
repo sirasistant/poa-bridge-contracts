@@ -7,7 +7,6 @@ const EternalStorageProxy = artifacts.require('EternalStorageProxy')
 module.exports = async function(deployer, network, accounts) {
   const VALIDATORS = process.env.VALIDATORS ? process.env.VALIDATORS.split(" ") : [accounts[0]];
   const REQUIRED_NUMBER_OF_VALIDATORS = process.env.REQUIRED_VALIDATORS || VALIDATORS.length
-  const PROXY_OWNER = process.env.PROXY_OWNER || accounts[0];
   const homeDailyLimit = process.env.HOME_LIMIT || '1000000000000000000000000' // 1000000 ether
   const MAX_AMOUNT_PER_TX = process.env.MAX_AMOUNT_PER_TX || '1000000000000000000000' // 1000 ether
   const MIN_AMOUNT_PER_TX = process.env.MIN_AMOUNT_PER_TX || '10000000000000000' // 0.01 ether
@@ -15,8 +14,15 @@ module.exports = async function(deployer, network, accounts) {
   const HOME_GAS_PRICE = process.env.HOME_GAS_PRICE || '1000000000';
   const FOREIGN_REQUIRED_BLOCK_CONFIRMATIONS = process.env.FOREIGN_REQUIRED_BLOCK_CONFIRMATIONS || '3';
   const ERC20_ADDRESS = process.env.ERC20_ADDRESS || null;
+  const PROXY_OWNER = process.env.PROXY_OWNER || accounts[1];
 
   if(network === 'sidechain'){
+    if(ERC20_ADDRESS===null){
+      throw new Error("Fill the enviroment variable ERC20_ADDRESS");
+    }
+    if(!PROXY_OWNER){
+      throw new Error("You need a second address for deployment, not coinbase");
+    }
     console.log('storage for home validators')
     await deployer.deploy(EternalStorageProxy, {from: PROXY_OWNER});
     const storageBridgeValidators = await EternalStorageProxy.deployed()
@@ -77,6 +83,9 @@ module.exports = async function(deployer, network, accounts) {
     Home Bridge: ${homeBridgeUpgradeable.address}
     Side VPP: ${erc677token.address}`)
   } else if(network === "rinkeby"){
+    if(!PROXY_OWNER){
+      throw new Error("You need a second address for deployment, not coinbase");
+    }
 
     console.log('storage for home validators')
     await deployer.deploy(EternalStorageProxy, {from: PROXY_OWNER});
