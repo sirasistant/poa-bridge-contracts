@@ -22,7 +22,7 @@ module.exports = async function(deployer, network, accounts) {
     if(!PROXY_OWNER){
       throw new Error("You need a second address for deployment, not coinbase");
     }
-    console.log('storage for home validators')
+    console.log('storage for foreign validators')
     await deployer.deploy(EternalStorageProxy, {from: PROXY_OWNER});
     const storageBridgeValidators = await EternalStorageProxy.deployed()
 
@@ -44,34 +44,34 @@ module.exports = async function(deployer, network, accounts) {
       gas: 4700000
     })
 
-    console.log('deploying home storage on home network')
+    console.log('deploying foreign storage on foreign network')
     await deployer.deploy(EternalStorageProxy, {from: PROXY_OWNER});
-    const homeBridgeUpgradeable = await EternalStorageProxy.deployed()
-    await deployer.deploy(HomeBridge);
-    const homeBridgeImplementation = await HomeBridge.deployed();
-    var homeBridgeWeb3 = web3.eth.contract(HomeBridge.abi);
-    var homeBridgeWeb3Instance = homeBridgeWeb3.at(homeBridgeImplementation.address);
+    const foreignBridgeUpgradeable = await EternalStorageProxy.deployed()
+    await deployer.deploy(ForeignBridge);
+    const foreignBridgeImplementation = await ForeignBridge.deployed();
+    var foreignBridgeWeb3 = web3.eth.contract(ForeignBridge.abi);
+    var foreignBridgeWeb3Instance = foreignBridgeWeb3.at(foreignBridgeImplementation.address);
 
-    var initializeDataHome = homeBridgeWeb3Instance.initialize.getData(
+    var initializeDataForeign = foreignBridgeWeb3Instance.initialize.getData(
       storageBridgeValidators.address,
-      homeDailyLimit,
+      foreignDailyLimit,
       MAX_AMOUNT_PER_TX,
       MIN_AMOUNT_PER_TX,
       HOME_GAS_PRICE,
       HOME_REQUIRED_BLOCK_CONFIRMATIONS
     );
-    await homeBridgeUpgradeable.upgradeTo('1', homeBridgeImplementation.address, {from: PROXY_OWNER});
+    await foreignBridgeUpgradeable.upgradeTo('1', foreignBridgeImplementation.address, {from: PROXY_OWNER});
     await web3.eth.sendTransaction({
       from: PROXY_OWNER,
-      to: homeBridgeUpgradeable.address,
-      data: initializeDataHome,
+      to: foreignBridgeUpgradeable.address,
+      data: initializeDataForeign,
       value: 0,
       gas: 4700000
     })
     console.log('ETH is done for rinkeby', `
     validators: ${VALIDATORS}
     Owner: ${PROXY_OWNER}
-    Home Bridge: ${homeBridgeUpgradeable.address}`)
+    Foreign Bridge: ${foreignBridgeUpgradeable.address}`)
   } else if(network === "sidechain"){
     if(!PROXY_OWNER){
       throw new Error("You need a second address for deployment, not coinbase");
@@ -103,39 +103,39 @@ module.exports = async function(deployer, network, accounts) {
     })
 
 
-    console.log('deploying ForeignBridge');
+    console.log('deploying HomeBridge');
     await deployer.deploy(EternalStorageProxy, {from: PROXY_OWNER});
-    const foreignBridgeUpgradeable = await EternalStorageProxy.deployed()
-    await deployer.deploy(ForeignBridge);
-    const foreignBridgeImplementation = await ForeignBridge.deployed();
-    var foreignBridgeWeb3 = web3.eth.contract(ForeignBridge.abi);
-    var foreignBridgeWeb3Instance = foreignBridgeWeb3.at(foreignBridgeImplementation.address);
+    const homeBridgeUpgradeable = await EternalStorageProxy.deployed()
+    await deployer.deploy(HomeBridge);
+    const homeBridgeImplementation = await HomeBridge.deployed();
+    var homeBridgeWeb3 = web3.eth.contract(HomeBridge.abi);
+    var homeBridgeWeb3Instance = homeBridgeWeb3.at(homeBridgeImplementation.address);
 
-    var initializeDataForeign = foreignBridgeWeb3Instance.initialize.getData(
+    var initializeDataHome = homeBridgeWeb3Instance.initialize.getData(
         storageBridgeValidators.address,
         erc677token.address,
-        foreignDailyLimit,
+        homeDailyLimit,
         MAX_AMOUNT_PER_TX,
         MIN_AMOUNT_PER_TX,
         FOREIGN_GAS_PRICE,
         FOREIGN_REQUIRED_BLOCK_CONFIRMATIONS
       );
-      await foreignBridgeUpgradeable.upgradeTo('1', foreignBridgeImplementation.address, {from: PROXY_OWNER});
+      await homeBridgeUpgradeable.upgradeTo('1', homeBridgeImplementation.address, {from: PROXY_OWNER});
 
     await web3.eth.sendTransaction({
       from: PROXY_OWNER,
-      to: foreignBridgeUpgradeable.address,
-      data: initializeDataForeign,
+      to: homeBridgeUpgradeable.address,
+      data: initializeDataHome,
       value: 0,
       gas: 4700000
     })
 
-    await erc677token.transferOwnership(foreignBridgeUpgradeable.address);
+    await erc677token.transferOwnership(homeBridgeUpgradeable.address);
 
     console.log('ETH is done for sidechain', `
     validators: ${VALIDATORS}
     Owner: ${PROXY_OWNER}
-    Foreign Bridge: ${foreignBridgeUpgradeable.address}
+    Home Bridge: ${homeBridgeUpgradeable.address}
     Sidechain ETH: ${erc677token.address}`)
   }
 
