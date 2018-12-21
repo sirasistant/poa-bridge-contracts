@@ -27,7 +27,7 @@ contract ForeignBridgeNativeToErc is EternalStorage, BasicBridge, BasicForeignBr
       returns(bool)
     {
         require(!isInitialized());
-        require(_validatorContract != address(0));
+        require(_validatorContract != address(0) && isContract(_validatorContract));
         require(_foreignGasPrice > 0);
         require(_requiredBlockConfirmations > 0);
         require(_minPerTx > 0 && _maxPerTx > _minPerTx && _dailyLimit > _maxPerTx);
@@ -40,6 +40,10 @@ contract ForeignBridgeNativeToErc is EternalStorage, BasicBridge, BasicForeignBr
         uintStorage[keccak256(abi.encodePacked("requiredBlockConfirmations"))] = _requiredBlockConfirmations;
         setInitialize(true);
         return isInitialized();
+    }
+
+    function getBridgeMode() public pure returns(bytes4 _data) {
+        return bytes4(keccak256(abi.encodePacked("native-to-erc-core")));
     }
 
     function () public payable {

@@ -21,7 +21,7 @@ contract HomeBridgeNativeToErc is ERC677Receiver, BasicBridge, BasicHomeBridge, 
         uint256 _requiredBlockConfirmations
     ) public returns(bool) {
         require(!isInitialized());
-        require(_validatorContract != address(0));
+        require(_validatorContract != address(0) && isContract(_validatorContract));
         require(_minPerTx > 0 && _maxPerTx > _minPerTx && _dailyLimit > _maxPerTx);
         require(_homeGasPrice > 0);
         addressStorage[keccak256(abi.encodePacked("validatorContract"))] = _validatorContract;
@@ -38,6 +38,10 @@ contract HomeBridgeNativeToErc is ERC677Receiver, BasicBridge, BasicHomeBridge, 
 
     function () public {
         revert();
+    }
+
+    function getBridgeMode() public pure returns(bytes4 _data) {
+        return bytes4(keccak256(abi.encodePacked("native-to-erc-core")));
     }
 
     function claimTokensFromErc677(address _token, address _to) external onlyOwner {
