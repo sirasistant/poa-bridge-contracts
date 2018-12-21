@@ -1,100 +1,155 @@
+[![Join the chat at https://gitter.im/poanetwork/poa-bridge](https://badges.gitter.im/poanetwork/poa-bridge.svg)](https://gitter.im/poanetwork/poa-bridge?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://travis-ci.org/poanetwork/poa-parity-bridge-contracts.svg?branch=master)](https://travis-ci.org/poanetwork/poa-parity-bridge-contracts)
 
-# POA bridge smart contracts
-These contracts are the core of POA bridge functionality. They implement the logic to relay assests between
-two EVM-based blockchain networks by collecting bridge validators signatures to approve relay operations.
+# POA Bridge Smart Contracts
+These contracts provide the core functionality for the POA bridge. They implement the logic to relay assests between two EVM-based blockchain networks. The contracts collect bridge validator's signatures to approve and facilitate relay operations. 
 
-Currently the contracts supports two types of relay operations:
-* to tokenize native coins circulating in one blockchain network (Home) into an ERC20 token in another network (Foreign);
-* to swap a token presented by an ERC20 contract in Home network to an existing ERC20 token in Foreign network.
+The POA bridge smart contracts are intended to work with [the bridge process implemented on NodeJS](https://github.com/poanetwork/token-bridge).
+Please refer to the bridge process documentation to configure and deploy the bridge.
 
-POA bridge consist of several main parts:
-* Home Bridge is a smart contract that should be deployed in POA.network;
-* Foreign Bridge is a smart contract that should be deployed in Ethereum Mainnet;
-* Depending on type of relay operations the following components are used as well:
-  * in `NATIVE-TO-ERC` mode: ERC20 token (in fact, ERC677 extension is used) should be deployed on Foreign network;
-  * in `ERC-TO-ERC` mode: ERC20 token (in fact, ERC677 extension is used) should be deployed on Home network;
+## Bridge Overview
+
+The POA Bridge allows users to transfer assets between two chains in the Ethereum ecosystem. It is composed of several elements which are located in different POA Network repositories:
+
+**Bridge Elements**
+1. Solidity smart contracts, contained in this repository.
+2. [Token Bridge](https://github.com/poanetwork/token-bridge). A NodeJS oracle responsible for listening to events and sending transactions to authorize asset transfers.
+3. [Bridge UI Application](https://github.com/poanetwork/bridge-ui). A DApp interface to transfer tokens and coins between chains.
+4. [Bridge Monitor](https://github.com/poanetwork/bridge-monitor). A tool for checking balances and unprocessed events in bridged networks.
+5. [Bridge Deployment Playbooks](https://github.com/poanetwork/deployment-bridge). Manages configuration instructions for remote deployments.
+
+## Bridge Smart Contracts Summary
+
+### Operations
+
+Currently, the contracts support two types of relay operations:
+* Tokenize the native coin in one blockchain network (Home) into an ERC20 token in another network (Foreign).
+* Swap a token presented by an existing ERC20 contract in a Foreign network into an ERC20 token in the Home network, where one pair of bridge contracts corresponds to one pair of ERC20 tokens.
+* to mint new native coins in Home blockchain network from a token presented by an existing ERC20 contract in a Foreign network.
+
+
+### Components
+
+The POA bridge contracts consist of several components:
+* The **Home Bridge** smart contract. This is currently deployed in POA.Network.
+* The **Foreign Bridge** smart contract. This is deployed in the Ethereum Mainnet.
+* Depending on the type of relay operations the following components are also used:
+  * in `NATIVE-TO-ERC` mode: the ERC20 token (in fact, the ERC677 extension is used) is deployed on the Foreign network;
+  * in `ERC-TO-ERC` mode: the ERC20 token (in fact, the ERC677 extension is used) is deployed on the Home network;
+  * in `ERC-TO-NATIVE` mode: The home network nodes must support consensus engine that allows using a smart contract for block reward calculation;
+* The **Validators** smart contract is deployed in both the POA.Network and the Ethereum Mainnet.
+
+### Bridge Roles and Responsibilities
 
 Responsibilities and roles of the bridge:
-- Administrator Role(representation of a multisig contract):
+- **Administrator** role (representation of a multisig contract):
   - add/remove validators
   - set daily limits on both bridges
   - set maximum per transaction limit on both bridges
   - set minimum per transaction limit on both bridges
   - upgrade contracts in case of vulnerability
   - set minimum required signatures from validators in order to relay a user's transaction
-- Validator Role :
+- **Validator** role:
   - provide 100% uptime to relay transactions
-  - listen for Deposit events on Home bridge to mint erc20 token on Foreign bridge
-  - listen for Withdraw events on Foreign bridge to unlock funds on Home Bridge
-- User role:
-  - sends POA coins to Home bridge in order to receive ERC20 token on Foreign Bridge
-  - sends ERC20 POA20 token on Foreign Bridge in order to receive POA coins on Home Bridge
+  - listen for `UserRequestForSignature` events on Home Bridge and sign an approval to relay assets on Foreign network
+  - listen for `CollectedSignatures` events on Home Bridge. As soon as enough signatures are collected, transfer all collected signatures to the Foreign Bridge contract.
+  - listen for `UserRequestForAffirmation` or `Transfer` (depending on the bridge mode) events on the Foreign Bridge and send approval to Home Bridge to relay assets from Foreign Network to Home
+- **User** role:
+  - sends assets to Bridge contracts:
+    - in `NATIVE-TO-ERC` mode: send native coins to the Home Bridge to receive ERC20 tokens from the Foreign Bridge, send ERC20 tokens to the Foreign Bridge to unlock native coins from the Home Bridge;
+    - in `ERC-TO-ERC` mode: transfer ERC20 tokens to the Foreign Bridge to mint ERC20 tokens on the Home Network, transfer ERC20 tokens to the Home Bridge to unlock ERC20 tokens on Foreign networks; 
+    - in `ERC-TO-NATIVE` mode: send ERC20 tokens to the Foreign Bridge to receive native coins from the Home Bridge, send native coins to the Home Bridge to unlock ERC20 tokens from the Foreign Bridge.
 
+## Usage
 
-# Dependencies
+There are two ways to deploy contracts:
+* install and use NodeJS
+* use Docker to deploy 
+
+### Deployment with NodeJS
+
+#### Install Dependencies
 ```bash
 npm install
 ```
+#### Deploy
+Please the [README.md](deploy/README.md) in the `deploy` folder for instructions and .env file configuration
 
-# To Deploy
-Check README.md in `deploy` folder
+#### Test
+```bash
+npm test
+```
 
-# Manual Deployment steps(OUTDATED)
+#### Flatten
+Fattened contracts can be used to verify the contract code in a block explorer like BlockScout or Etherscan.
+The following command will prepare flattened version of the contracts:
 
-## Home Deployment(Sokol)
-
-1. Deploy [EternalStorageProxy contract](https://github.com/poanetwork/poa-parity-bridge-contracts/blob/upgradable/flats/EternalStorageProxy_flat.sol#L218) (Example address: '0x01')
-that will be used as Home Bridge Validators Proxy contract
-2. Deploy [BridgeValidators contract](https://github.com/poanetwork/poa-parity-bridge-contracts/blob/upgradable/flats/BridgeValidators_flat.sol#L197) (Example address: '0x02')
-3. Call `upgradeTo` of EternalStorageProxy that is used as  Home Bridge Validators with 2 parameters:
-- 0 - version of implementation contract
-- address of implementation which is the address of step#2 BridgeValidators deployed contract (`0x02`)
-4. Call `initialize` method at Home Bridge Validators Proxy(`0x01`) with 2 parameters:
-- REQUIRED_NUMBER_OF_VALIDATORS. Example: `1`
-- Array of validators. Example `["0x0039F22efB07A647557C7C5d17854CFD6D489eF3", "0xf052d236b8076879d86c9e4c116a068a0d420c55"]`
-5. Deploy [Home Bridge](https://github.com/poanetwork/poa-parity-bridge-contracts/blob/upgradable/flats/HomeBridge_flat.sol#L289). Example address: `0x03`
-6. Deploy [EternalStorageProxy contract](https://github.com/poanetwork/poa-parity-bridge-contracts/blob/upgradable/flats/EternalStorageProxy_flat.sol#L218)
-that will be used as Home Bridge Proxy contract.  Example address: `0x04`
-7. Call `upgradeTo` of EternalStorageProxy that is used as  Home Bridge Proxy(step#6) with 2 parameters:
-- 0 - version of implementation contract
-- address of implementation which is the address of step#5 HomeBridge deployed contract. (`0x03`)
-8. Call `initialize` method at Home Bridge Proxy address with 4 parameters:
-- address of Home Bridge **Validators** address Proxy ( step# 1) `0x01`
-- Daily Limit in wei: Example `1000000000000000000` == 1 ether
-- Maximum Per Transaction Limit in wei: Example `100000000000000000` == 0.1 ether. Should be less than Daily Limit
-- Minimum Per Transaction Limit in wei: Example `10000000000000000` == 0.01 ether. Should be less than Daily Limit and less than MaxPerTx
-=====
-## Foreign Deployment on Kovan
-=====
-
-9. Deploy [POA20 contract](https://github.com/poanetwork/poa-parity-bridge-contracts/blob/upgradable/flats/POA20_flat.sol#L448) Example(`0x05`)
-10. Deploy [EternalStorageProxy contract](https://github.com/poanetwork/poa-parity-bridge-contracts/blob/upgradable/flats/EternalStorageProxy_flat.sol#L218)
-that will be used as Foreign Bridge Validators Proxy contract. Example `0x06`
-11. Deploy [BridgeValidators contract](https://github.com/poanetwork/poa-parity-bridge-contracts/blob/upgradable/flats/BridgeValidators_flat.sol#L197) Example `0x07`
-12. Call `upgradeTo` of EternalStorageProxy(`0x06`) that is used as  Foreign Bridge Validators Proxy(step#10) with 2 parameters:
-- 0 - version of implementation contract
-- address of implementation which is the address of step#11 Foreign BridgeValidators deployed contract. (`0x07`)
-13. Call `initialize` method at Foreign Bridge Validators Proxy(`0x06`) with 2 parameters:
-- REQUIRED_NUMBER_OF_VALIDATORS. Example: `1`
-- Array of validators. Example `["0x0039F22efB07A647557C7C5d17854CFD6D489eF3", "0xf052d236b8076879d86c9e4c116a068a0d420c55"]`
-14. Deploy [EternalStorageProxy contract](https://github.com/poanetwork/poa-parity-bridge-contracts/blob/upgradable/flats/EternalStorageProxy_flat.sol#L218)
-that will be used as Foreign Bridge Proxy contract. Example `0x08`
-15. Deploy [Foreign Bridge contract](https://github.com/poanetwork/poa-parity-bridge-contracts/blob/upgradable/flats/ForeignBridge_flat.sol#L345) Example `0x09`
-16. Call `upgradeTo` of EternalStorageProxy(`0x08`) that is used as  Foreign Bridge Proxy(step#14) with 2 parameters:
-- 0 - version of implementation contract
-- address of implementation which is the address of step#15 Foreign Bridge deployed contract. (`0x09`)
-17. Call `initialize` method at Foreign Bridge Proxy(`0x08`) address with 5 parameters:
-- address of Foreign Bridge **Validators** address Proxy ( step# 10) `0x06`
-- address of POA20 token contract. Step#9 `0x05`
-- Daily Limit in wei: Example `1000000000000000000` == 1 ether
-- Maximum Per Transaction Limit in wei: Example `100000000000000000` == 0.1 ether. Should be less than Daily Limit
-- Minimum Per Transaction Limit in wei: Example `10000000000000000` == 0.01 ether. Should be less than Daily Limit and less than MaxPerTx
-18. Call `transferOwnership` of POA20 contract(0x05) with 1 parameter:
-- address of Foreign Bridge Proxy (`0x08`) from step#14
-
-
-# To Flatten
 ```bash
 npm run flatten
 ```
+The flattened contracts can be found in the `flats` directory.
+
+### Deployment in the Docker environment
+[Docker](https://www.docker.com/community-edition) and [Docker Compose](https://docs.docker.com/compose/install/) can be used to deploy contracts without NodeJS installed on the system. 
+If you are on Linux, we recommend you [create a docker group and add your user to it](https://docs.docker.com/install/linux/linux-postinstall/), so that you can use the CLI without `sudo`.
+
+#### Prepare the docker container
+```bash
+docker-compose up --build
+```
+_Note: The container must be rebuilt every time the code in a contract or deployment script is changed._
+
+#### Deploy the contracts
+1. Create the `.env` file in the `deploy` directory as described in the deployment [README.md](deploy/README.md).
+2. Run deployment process:
+   ```bash
+   docker-compose run bridge-contracts deploy.sh
+   ```
+   or with Linux:
+   ```bash
+   ./deploy.sh
+   ```
+
+#### Copy flatten sources (if needed)
+1. Discover the container name:
+   ```bash
+   docker-compose images bridge-contracts
+   ```
+2. In the following command, use the container name to copy the flattened contracts code to the current working directory. The contracts will be located in the `flats` directory.
+   ```bash
+   docker cp name-of-your-container:/contracts/flats ./
+   ```
+
+#### Shutdown the container
+If the container is no longer needed, it can be shutdown:
+```bash
+docker-compose down
+```
+
+### Gas Consumption
+The [GAS_CONSUMPTION](GAS_CONSUMPTION.md) file includes Min, Max, and Avg gas consumption figures for contracts associated with each bridge mode.
+
+### Testing environment
+To test the bridge scripts in ERC20-to-ERC20 mode on a testnet like Sokol or Kovan, you must deploy an ERC20 token to the foreign network.
+This can be done by running the following command:
+```bash
+cd deploy
+node testenv-deploy.js token
+```
+or with Docker:
+```bash
+./deploy.sh token
+```
+
+## Contributing
+
+See the [CONTRIBUTING](CONTRIBUTING.md) document for contribution, testing and pull request protocol.
+
+## License
+
+[![License: GPL v3.0](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
+This project is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.
+
+
+
